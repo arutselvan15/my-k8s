@@ -9,7 +9,7 @@ spec:
     server: https://kubernetes.default.svc
   source:
     repoURL: https://github.com/arutselvan15/my-k8s.git
-    targetRevision: develop
+    targetRevision: main
     path: "apps/sample-app"
     directory:
       recurse: true
