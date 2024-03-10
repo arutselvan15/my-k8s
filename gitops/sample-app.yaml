@@ -4,7 +4,7 @@ metadata:
   name: sample-app
   namespace: argocd
 spec:
-  project: sample-app
+  project: default
   destination:
     namespace: sample-app
     server: https://kubernetes.default.svc
