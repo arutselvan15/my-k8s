@@ -73,3 +73,58 @@ https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/
 ### References:
 
 https://argo-cd.readthedocs.io/en/stable/getting_started/
+
+## MetalLB setup
+
+```
+    kubectl apply -f infra-setup/04-metallb/01-metal-lb-setup.yaml
+    
+    kubectl wait --namespace metallb-system \
+                --for=condition=ready pod \
+                --selector=app=metallb \
+                --timeout=90s
+    # docker network inspect -f '{{.IPAM.Config}}' kind
+
+    podman network inspect -f '{{range .Subnets}}{{if eq (len .Subnet.IP) 4}}{{.Subnet}}{{end}}{{end}}' kind
+    # this willl give you the IP address pool used by loadbalancers
+    # example: 10.89.0.0/24
+    # IMPORTANT: set the IP address pool in the file "infra-setup/04-metallb/02-metallb-ip-addr-pool.yaml"
+    # example: 10.89.255.200-10.89.255.250
+    
+    kubectl apply -f infra-setup/04-metallb/02-metallb-ip-addr-pool.yaml
+    
+    # test the setup by creating svc with type loadbalancer and see the external IP
+    kubectl apply -f apps/sample-app/service-lb.yaml
+    $] kubectl get svc -o wide -n sample-app         
+    NAME            TYPE           CLUSTER-IP     EXTERNAL-IP     PORT(S)          AGE     SELECTOR
+    sample-app      ClusterIP      10.96.61.31    <none>          5000/TCP         18d     app=sample-app
+    sample-app-lb   LoadBalancer   10.96.23.132   10.89.255.201   5000:32499/TCP   2m20s   app=sample-app
+
+```
+https://kind.sigs.k8s.io/docs/user/loadbalancer/
+
+
+## Istio setup
+    
+    ```
+        brew install istioctl
+
+        kubectl create namespace istio-system
+        istioctl install --set profile=demo -y
+
+        # testing the setup
+        kubectl create namespace bookinfo
+        kubectl label namespace bookinfo istio-injection=enabled
+        kubectl apply -f infra-setup/05-istio/01-bookinfo.yaml -n bookinfo
+
+        # wait for pods to be ready and test below command
+        kubectl exec "$(kubectl get pod -n bookinfo -l app=ratings -o jsonpath='{.items[0].metadata.name}')" -n bookinfo -c ratings -- curl -sS productpage:9080/productpage | grep -o "<title>.*</title>"
+
+        kubectl apply -f infra-setup/05-istio/02-bookinfo-gateway.yaml -n bookinfo
+
+        # check if any issue detected by istio
+        istioctl analyze -n bookinfo
+    ```
+### References:
+
+https://istio.io/latest/docs/setup/platform-setup/kind/
